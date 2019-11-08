@@ -1,4 +1,4 @@
-module github.com/adityapk00/lightwalletd
+module github.com/OleksandrBlack/safecoin-lightwalletd
 
 go 1.12
 
@@ -29,7 +29,6 @@ require (
 	github.com/smartystreets/goconvey v0.0.0-20190731233626-505e41936337 // indirect
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/stretchr/testify v1.4.0 // indirect
-	github.com/zcash-hackworks/lightwalletd v0.0.0-20191007195656-ac5aa8e42f09 // indirect
 	go.opencensus.io v0.22.1 // indirect
 	golang.org/x/crypto v0.0.0-20191002192127-34f69633bfdc // indirect
 	golang.org/x/exp v0.0.0-20191002040644-a1355ae1e2c3 // indirect

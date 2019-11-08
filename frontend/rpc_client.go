@@ -23,13 +23,13 @@ func NewZRPCFromConf(confPath string) (*rpcclient.Client, error) {
 }
 
 func NewZRPCFromCreds(addr, username, password string) (*rpcclient.Client, error) {
-	// Connect to local zcash RPC server using HTTP POST mode.
+	// Connect to local safecoin RPC server using HTTP POST mode.
 	connCfg := &rpcclient.ConnConfig{
 		Host:         addr,
 		User:         username,
 		Pass:         password,
-		HTTPPostMode: true, // Zcash only supports HTTP POST mode
-		DisableTLS:   true, // Zcash does not provide TLS by default
+		HTTPPostMode: true, // Safecoin only supports HTTP POST mode
+		DisableTLS:   true, // Safecoin does not provide TLS by default
 	}
 	// Notice the notification parameter is nil since notifications are
 	// not supported in HTTP POST mode.

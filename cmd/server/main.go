@@ -15,9 +15,9 @@ import (
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/reflection"
 
-	"github.com/adityapk00/lightwalletd/common"
-	"github.com/adityapk00/lightwalletd/frontend"
-	"github.com/adityapk00/lightwalletd/walletrpc"
+	"github.com/OleksandrBlack/safecoin-lightwalletd/common"
+	"github.com/OleksandrBlack/safecoin-lightwalletd/frontend"
+	"github.com/OleksandrBlack/safecoin-lightwalletd/walletrpc"
 )
 
 var log *logrus.Entry
@@ -88,7 +88,7 @@ type Options struct {
 
 func main() {
 	opts := &Options{}
-	flag.StringVar(&opts.bindAddr, "bind-addr", "127.0.0.1:9067", "the address to listen on")
+	flag.StringVar(&opts.bindAddr, "bind-addr", "127.0.0.1:9071", "the address to listen on")
 	flag.StringVar(&opts.tlsCertPath, "tls-cert", "", "the path to a TLS certificate (optional)")
 	flag.StringVar(&opts.tlsKeyPath, "tls-key", "", "the path to a TLS key file (optional)")
 	flag.BoolVar(&opts.noTLS, "no-tls", false, "Disable TLS, serve un-encrypted traffic.")
@@ -108,7 +108,7 @@ func main() {
 
 	if !opts.noTLS && (opts.tlsCertPath == "" || opts.tlsKeyPath == "") {
 		println("Please specify a TLS certificate/key to use. You can use a self-signed certificate.")
-		println("See 'https://github.com/adityapk00/lightwalletd/blob/master/README.md#running-your-own-zeclite-lightwalletd'")
+		println("See 'https://github.com/OleksandrBlack/safecoin-lightwalletd/blob/master/README.md#running-your-own-safelite-lightwalletd'")
 		os.Exit(1)
 	}
 
@@ -150,7 +150,7 @@ func main() {
 		reflection.Register(server)
 	}
 
-	// Initialize Zcash RPC client. Right now (Jan 2018) this is only for
+	// Initialize Safecoin RPC client. Right now (Jan 2018) this is only for
 	// sending transactions, but in the future it could back a different type
 	// of block streamer.
 
@@ -158,9 +158,9 @@ func main() {
 	if err != nil {
 		log.WithFields(logrus.Fields{
 			"error": err,
-		}).Warn("zcash.conf failed, will try empty credentials for rpc")
+		}).Warn("safecoin.conf failed, will try empty credentials for rpc")
 
-		rpcClient, err = frontend.NewZRPCFromCreds("127.0.0.1:8232", "", "")
+		rpcClient, err = frontend.NewZRPCFromCreds("127.0.0.1:8771", "", "")
 
 		if err != nil {
 			log.WithFields(logrus.Fields{

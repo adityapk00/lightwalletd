@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/adityapk00/lightwalletd/parser"
-	"github.com/adityapk00/lightwalletd/walletrpc"
+	"github.com/OleksandrBlack/safecoin-lightwalletd/parser"
+	"github.com/OleksandrBlack/safecoin-lightwalletd/walletrpc"
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -25,7 +25,7 @@ func GetSaplingInfo(rpcClient *rpcclient.Client) (int, int, string, string, erro
 	if rpcErr != nil {
 		errParts := strings.SplitN(rpcErr.Error(), ":", 2)
 		errCode, err = strconv.ParseInt(errParts[0], 10, 32)
-		//Check to see if we are requesting a height the zcashd doesn't have yet
+		//Check to see if we are requesting a height the safecoind doesn't have yet
 		if err == nil && errCode == -8 {
 			return -1, -1, "", "", nil
 		}
@@ -65,7 +65,7 @@ func getBlockFromRPC(rpcClient *rpcclient.Client, height int) (*walletrpc.Compac
 	if rpcErr != nil {
 		errParts := strings.SplitN(rpcErr.Error(), ":", 2)
 		errCode, err = strconv.ParseInt(errParts[0], 10, 32)
-		//Check to see if we are requesting a height the zcashd doesn't have yet
+		//Check to see if we are requesting a height the safecoind doesn't have yet
 		if err == nil && errCode == -8 {
 			return nil, nil
 		}
@@ -130,7 +130,7 @@ func BlockIngestor(rpcClient *rpcclient.Client, cache *BlockCache, log *logrus.E
 					if timeoutCount == 3 {
 						log.WithFields(logrus.Fields{
 							"timeouts": timeoutCount,
-						}).Warn("unable to issue RPC call to zcashd node 3 times")
+						}).Warn("unable to issue RPC call to safecoind node 3 times")
 						break
 					}
 				}

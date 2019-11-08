@@ -141,10 +141,6 @@ github.com/stretchr/testify v1.2.2/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXf
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
 github.com/stretchr/testify v1.4.0 h1:2E4SXV/wtOkTonXsotYi4li6zVWxYlZuYNCXe9XRJyk=
 github.com/stretchr/testify v1.4.0/go.mod h1:j7eGeouHqKxXV5pUuKE4zz7dFj8WfuZ+81PSLYec5m4=
-github.com/zcash-hackworks/lightwalletd v0.0.0-20190906012100-a91acdbdecfb h1:0vTMQHSoogL5ZI3Z3MUjpeEMx5RzHzUHScTAA3KiSks=
-github.com/zcash-hackworks/lightwalletd v0.0.0-20190906012100-a91acdbdecfb/go.mod h1:2114E67+iUQVth+Gi4K2pxJw9KWyIBODRYoDn5mFxlY=
-github.com/zcash-hackworks/lightwalletd v0.0.0-20190925163758-a4578219497f/go.mod h1:hSyp0zSIqYe3SdSRkKchLeccOW7vgOgZy1/Igldmr8o=
-github.com/zcash-hackworks/lightwalletd v0.0.0-20191007195656-ac5aa8e42f09/go.mod h1:hSyp0zSIqYe3SdSRkKchLeccOW7vgOgZy1/Igldmr8o=
 go.opencensus.io v0.21.0/go.mod h1:mSImk1erAIZhrmZN+AvHh14ztQfjbGwt4TtuofqLduU=
 go.opencensus.io v0.22.0/go.mod h1:+kGneAE2xo2IficOXnaByMWTGM9T73dGwxeWcUqIpI8=
 go.opencensus.io v0.22.1/go.mod h1:Ap50jQcDJrx6rB6VgeeFPtuPIf3wMRvRfrfYDO6+BmA=

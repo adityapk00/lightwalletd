@@ -12,8 +12,8 @@ import (
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/sirupsen/logrus"
 
-	"github.com/adityapk00/lightwalletd/common"
-	"github.com/adityapk00/lightwalletd/walletrpc"
+	"github.com/OleksandrBlack/safecoin-lightwalletd/common"
+	"github.com/OleksandrBlack/safecoin-lightwalletd/walletrpc"
 )
 
 var (
@@ -68,7 +68,7 @@ func (s *SqlStreamer) GetAddressTxids(addressBlockFilter *walletrpc.TransparentA
 		s.log.Errorf("Got error: %s", rpcErr.Error())
 		errParts := strings.SplitN(rpcErr.Error(), ":", 2)
 		errCode, err = strconv.ParseInt(errParts[0], 10, 32)
-		//Check to see if we are requesting a height the zcashd doesn't have yet
+		//Check to see if we are requesting a height the safecoind doesn't have yet
 		if err == nil && errCode == -8 {
 			return nil
 		}
@@ -173,7 +173,7 @@ func (s *SqlStreamer) GetTransaction(ctx context.Context, txf *walletrpc.TxFilte
 			s.log.Errorf("Got error: %s", rpcErr.Error())
 			errParts := strings.SplitN(rpcErr.Error(), ":", 2)
 			errCode, err = strconv.ParseInt(errParts[0], 10, 32)
-			//Check to see if we are requesting a height the zcashd doesn't have yet
+			//Check to see if we are requesting a height the safecoind doesn't have yet
 			if err == nil && errCode == -8 {
 				return nil, err
 			}
@@ -203,7 +203,7 @@ func (s *SqlStreamer) GetTransaction(ctx context.Context, txf *walletrpc.TxFilte
 			s.log.Errorf("Got error: %s", rpcErr.Error())
 			errParts := strings.SplitN(rpcErr.Error(), ":", 2)
 			errCode, err = strconv.ParseInt(errParts[0], 10, 32)
-			//Check to see if we are requesting a height the zcashd doesn't have yet
+			//Check to see if we are requesting a height the safecoind doesn't have yet
 			if err == nil && errCode == -8 {
 				return nil, err
 			}
@@ -241,8 +241,8 @@ func (s *SqlStreamer) GetLightdInfo(ctx context.Context, in *walletrpc.Empty) (*
 	// TODO these are called Error but they aren't at the moment.
 	// A success will return code 0 and message txhash.
 	return &walletrpc.LightdInfo{
-		Version:                 "0.1-zeclightd",
-		Vendor:                  "ZecWallet LightWalletD",
+		Version:                 "0.1-safelightd",
+		Vendor:                  "SafeWallet LightWalletD",
 		TaddrSupport:            true,
 		ChainName:               chainName,
 		SaplingActivationHeight: uint64(saplingHeight),
@@ -251,7 +251,7 @@ func (s *SqlStreamer) GetLightdInfo(ctx context.Context, in *walletrpc.Empty) (*
 	}, nil
 }
 
-// SendTransaction forwards raw transaction bytes to a zcashd instance over JSON-RPC
+// SendTransaction forwards raw transaction bytes to a safecoind instance over JSON-RPC
 func (s *SqlStreamer) SendTransaction(ctx context.Context, rawtx *walletrpc.RawTransaction) (*walletrpc.SendResponse, error) {
 	// sendrawtransaction "hexstring" ( allowhighfees )
 	//
