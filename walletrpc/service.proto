@@ -50,7 +50,7 @@ message LightdInfo {
     bool   taddrSupport = 3;
     string chainName = 4;
     uint64 saplingActivationHeight = 5;
-    string consensusBranchId = 6;   // This should really be u32 or []byte, but string for readability
+    string branchId = 6;   // This should really be u32 or []byte, but string for readability
     uint64 blockHeight = 7;
 }
 
