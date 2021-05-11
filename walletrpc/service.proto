@@ -151,8 +151,8 @@ message PriceResponse {
     // 3-letter currency code, matching the request
     string currency = 2;  
 
-    // price of ZEC (in cents)
-    uint64 price = 3;
+    // price of ZEC
+    double price = 3;
 }
 
 service CompactTxStreamer {
@@ -163,8 +163,9 @@ service CompactTxStreamer {
     // Return a list of consecutive compact blocks
     rpc GetBlockRange(BlockRange) returns (stream CompactBlock) {}
 
-    // Get the historical prices 
+    // Get the historical and current prices 
     rpc GetZECPrice(PriceRequest) returns (PriceResponse) {}
+    rpc GetCurrentZECPrice(Empty) returns (PriceResponse) {}
 
     // Return the requested full (not compact) transaction (as from zcashd)
     rpc GetTransaction(TxFilter) returns (RawTransaction) {}

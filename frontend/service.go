@@ -101,6 +101,16 @@ func (s *lwdStreamer) GetZECPrice(ctx context.Context, in *walletrpc.PriceReques
 	return nil, errors.New("not implemented")
 }
 
+func (s *lwdStreamer) GetCurrentZECPrice(ctx context.Context, in *walletrpc.Empty) (*walletrpc.PriceResponse, error) {
+	price := common.GetCurrentPrice()
+	if price <= 0 {
+		return nil, errors.New("no price available")
+	}
+
+	resp := &walletrpc.PriceResponse{Timestamp: time.Now().Unix(), Currency: "USD", Price: price}
+	return resp, nil
+}
+
 // GetLatestBlock returns the height of the best chain, according to zcashd.
 func (s *lwdStreamer) GetLatestBlock(ctx context.Context, placeholder *walletrpc.ChainSpec) (*walletrpc.BlockID, error) {
 	result, rpcErr := common.RawRequest("getblockchaininfo", []json.RawMessage{})

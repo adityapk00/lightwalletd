@@ -279,6 +279,9 @@ func startServer(opts *common.Options) error {
 		walletrpc.RegisterDarksideStreamerServer(server, service)
 	}
 
+	// Initialize price fetcher
+	common.StartPriceFetcher()
+
 	// Start listening
 	listener, err := net.Listen("tcp", opts.GRPCBindAddr)
 	if err != nil {
