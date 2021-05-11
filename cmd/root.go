@@ -280,7 +280,7 @@ func startServer(opts *common.Options) error {
 	}
 
 	// Initialize price fetcher
-	common.StartPriceFetcher()
+	common.StartPriceFetcher(dbPath, chainName)
 
 	// Start listening
 	listener, err := net.Listen("tcp", opts.GRPCBindAddr)
