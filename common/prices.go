@@ -10,18 +10,25 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/sirupsen/logrus"
 )
 
-// Map of all historical prices. Date as "yyyy-mm-dd" to price in cents
-var historicalPrices map[string]float64 = make(map[string]float64)
+var (
+	// Map of all historical prices. Date as "yyyy-mm-dd" to price in cents
+	historicalPrices map[string]float64 = make(map[string]float64)
 
-// The latest price
-var latestPrice float64 = -1
+	// The latest price
+	latestPrice float64 = -1
 
-var pricesFileName string
+	// Mutex to control both historical and latest price
+	pricesRwMutex sync.RWMutex
+
+	// Full path of the persistence file
+	pricesFileName string
+)
 
 func fetchCoinCapPrice() (float64, error) {
 	resp, err := http.Get("https://api.coincap.io/v2/rates/zcash")
@@ -92,29 +99,10 @@ func fetchHistoricalCoingeckoPrice(ts *time.Time) (float64, error) {
 func fetchPriceFromWebAPI() (float64, error) {
 	price, err := fetchCoinCapPrice()
 
-	// Update the historical prices if needed
-	now := time.Now()
-	go addPriceToHistoricalMap(price, &now)
 	return price, err
 }
 
-func addPriceToHistoricalMap(price float64, ts *time.Time) {
-	dt := ts.Format("2006-01-02")
-	if _, ok := historicalPrices[dt]; !ok {
-		Log.WithFields(logrus.Fields{
-			"method": "HistoricalPrice",
-			"action": "Add",
-			"date":   dt,
-			"price":  price,
-		}).Info("Service")
-
-		historicalPrices[dt] = price
-
-		go writeHistoricalPricesMap()
-	}
-}
-
-func readHistoricalPricesMap() (map[string]float64, error) {
+func readHistoricalPricesFile() (map[string]float64, error) {
 	f, err := os.Open(pricesFileName)
 	if err != nil {
 		Log.Errorf("Couldn't open file %s for writing: %v", pricesFileName, err)
@@ -148,10 +136,17 @@ func writeHistoricalPricesMap() {
 	defer f.Close()
 
 	j := gob.NewEncoder(f)
-	err = j.Encode(historicalPrices)
-	if err != nil {
-		Log.Errorf("Couldn't encode historical prices: %v", err)
-		return
+
+	{
+		// Read lock
+		pricesRwMutex.RLock()
+		defer pricesRwMutex.RUnlock()
+
+		err = j.Encode(historicalPrices)
+		if err != nil {
+			Log.Errorf("Couldn't encode historical prices: %v", err)
+			return
+		}
 	}
 
 	Log.WithFields(logrus.Fields{
@@ -161,7 +156,19 @@ func writeHistoricalPricesMap() {
 }
 
 func GetCurrentPrice() float64 {
+	// Read lock
+	pricesRwMutex.RLock()
+	defer pricesRwMutex.RUnlock()
+
 	return latestPrice
+}
+
+func writeLatestPrice(price float64) {
+	// Write lock
+	pricesRwMutex.Lock()
+	defer pricesRwMutex.Unlock()
+
+	latestPrice = price
 }
 
 func GetHistoricalPrice(ts *time.Time) (float64, *time.Time, error) {
@@ -171,8 +178,13 @@ func GetHistoricalPrice(ts *time.Time) (float64, *time.Time, error) {
 		return -1, nil, err
 	}
 
-	if val, ok := historicalPrices[dt]; ok {
-		return val, &canonicalTime, nil
+	{
+		// Read lock
+		pricesRwMutex.RLock()
+		defer pricesRwMutex.RUnlock()
+		if val, ok := historicalPrices[dt]; ok {
+			return val, &canonicalTime, nil
+		}
 	}
 
 	// Fetch price from web API
@@ -182,9 +194,29 @@ func GetHistoricalPrice(ts *time.Time) (float64, *time.Time, error) {
 		return -1, nil, err
 	}
 
-	go addPriceToHistoricalMap(price, ts)
+	go addHistoricalPrice(price, ts)
 
 	return price, &canonicalTime, err
+}
+
+func addHistoricalPrice(price float64, ts *time.Time) {
+	dt := ts.Format("2006-01-02")
+
+	// Write lock
+	pricesRwMutex.Lock()
+	defer pricesRwMutex.Unlock()
+
+	if _, ok := historicalPrices[dt]; !ok {
+		historicalPrices[dt] = price
+
+		go Log.WithFields(logrus.Fields{
+			"method": "HistoricalPrice",
+			"action": "Add",
+			"date":   dt,
+			"price":  price,
+		}).Info("Service")
+		go writeHistoricalPricesMap()
+	}
 }
 
 // StartPriceFetcher starts a new thread that will fetch historical and current prices
@@ -193,9 +225,13 @@ func StartPriceFetcher(dbPath string, chainName string) {
 	pricesFileName = filepath.Join(dbPath, chainName, "prices")
 
 	// Read the historical prices if available
-	if prices, err := readHistoricalPricesMap(); err != nil {
+	if prices, err := readHistoricalPricesFile(); err != nil {
 		Log.Errorf("Couldn't read historical prices, starting with empty map")
 	} else {
+		// Write lock
+		pricesRwMutex.Lock()
+		defer pricesRwMutex.Unlock()
+
 		historicalPrices = prices
 	}
 
@@ -210,7 +246,8 @@ func StartPriceFetcher(dbPath string, chainName string) {
 					"method": "CurrentPrice",
 					"price":  price,
 				}).Info("Service")
-				latestPrice = price
+
+				writeLatestPrice(price)
 			}
 
 			// Sleep an hour before retrying
