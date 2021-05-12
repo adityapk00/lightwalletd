@@ -250,7 +250,7 @@ func writeLatestPrice(price float64) {
 
 		// Check if the time has "rolled over", if yes then preserve the last price
 		// as the previous day's historical price
-		if latestPriceAt.Format("2006-01-02") != time.Now().Format("2006-01-02") {
+		if latestPrice > 0 && latestPriceAt.Format("2006-01-02") != time.Now().Format("2006-01-02") {
 			// update the historical price.
 			// First, make a copy of the time
 			t := time.Unix(latestPriceAt.Unix(), 0)
@@ -300,6 +300,9 @@ func GetHistoricalPrice(ts *time.Time) (float64, *time.Time, error) {
 }
 
 func addHistoricalPrice(price float64, ts *time.Time) {
+	if price <= 0 {
+		return
+	}
 	dt := ts.Format("2006-01-02")
 
 	// Read Lock
