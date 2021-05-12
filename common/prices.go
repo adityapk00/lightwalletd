@@ -6,9 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
+	"runtime"
+	"sort"
 	"strconv"
 	"sync"
 	"time"
@@ -23,6 +27,9 @@ var (
 	// The latest price
 	latestPrice float64 = -1
 
+	// Latest price was fetched at
+	latestPriceAt time.Time
+
 	// Mutex to control both historical and latest price
 	pricesRwMutex sync.RWMutex
 
@@ -30,39 +37,7 @@ var (
 	pricesFileName string
 )
 
-func fetchCoinCapPrice() (float64, error) {
-	resp, err := http.Get("https://api.coincap.io/v2/rates/zcash")
-	if err != nil {
-		return -1, err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return -1, err
-	}
-
-	var priceJSON map[string]interface{}
-	json.Unmarshal(body, &priceJSON)
-
-	data, ok := priceJSON["data"].(map[string]interface{})
-	if !ok {
-		return -1, errors.New("API error. Couldn't find 'data'")
-	}
-
-	rateUSD, ok := data["rateUsd"].(string)
-	if !ok {
-		return -1, errors.New("API error. Couldn't find 'rateUsd'")
-	}
-
-	price, err := strconv.ParseFloat(rateUSD, 64)
-	return price, err
-}
-
-func fetchHistoricalCoingeckoPrice(ts *time.Time) (float64, error) {
-	dt := ts.Format("02-01-2006") // dd-mm-yyyy
-	url := fmt.Sprintf("https://api.coingecko.com/api/v3/coins/zcash/history?date=%s?id=zcash", dt)
-
+func fetchAPIPrice(url string, resultPath []string) (float64, error) {
 	resp, err := http.Get(url)
 	if err != nil {
 		return -1, err
@@ -76,30 +51,135 @@ func fetchHistoricalCoingeckoPrice(ts *time.Time) (float64, error) {
 
 	var priceJSON map[string]interface{}
 	json.Unmarshal(body, &priceJSON)
-	market_price, ok := priceJSON["market_data"].(map[string]interface{})
-	if !ok {
-		return -1, errors.New("API error. Couldn't find 'market_data'")
+
+	for i := 0; i < len(resultPath); i++ {
+		d, ok := priceJSON[resultPath[i]]
+		switch v := d.(type) {
+		case float64:
+			return v, nil
+		case string:
+			{
+				price, err := strconv.ParseFloat(v, 64)
+				return price, err
+			}
+
+		case map[string]interface{}:
+			priceJSON = v
+		}
+
+		if !ok {
+			return -1, fmt.Errorf("API error: couldn't find '%s'", resultPath[i])
+		}
 	}
 
-	cur_price, ok := market_price["current_price"].(map[string]float64)
-	if !ok {
-		return -1, errors.New("API error. Couldn't find 'current_price'")
-	}
+	return -1, errors.New("path didn't result in lookup")
+}
 
-	price, ok := cur_price["usd"]
-	if !ok {
-		return -1, errors.New("API error. Couldn't find 'usd'")
-	}
+func fetchCoinbasePrice() (float64, error) {
+	return fetchAPIPrice("https://api.coinbase.com/v2/exchange-rates?currency=ZEC", []string{"data", "rates", "USD"})
 
-	return price, err
+}
+
+func fetchCoinCapPrice() (float64, error) {
+	return fetchAPIPrice("https://api.coincap.io/v2/rates/zcash", []string{"data", "rateUsd"})
+}
+
+func fetchBinancePrice() (float64, error) {
+	return fetchAPIPrice("https://api.binance.com/api/v3/avgPrice?symbol=ZECUSDC", []string{"price"})
+}
+
+func fetchHistoricalCoingeckoPrice(ts *time.Time) (float64, error) {
+	dt := ts.Format("02-01-2006") // dd-mm-yyyy
+	url := fmt.Sprintf("https://api.coingecko.com/api/v3/coins/zcash/history?date=%s?id=zcash", dt)
+
+	return fetchAPIPrice(url, []string{"market_data", "current_price", "usd"})
+}
+
+// Median gets the median number in a slice of numbers
+func median(inp []float64) (median float64) {
+
+	// Start by sorting a copy of the slice
+	sort.Float64s(inp)
+
+	// No math is needed if there are no numbers
+	// For even numbers we add the two middle numbers
+	// and divide by two using the mean function above
+	// For odd numbers we just use the middle number
+	l := len(inp)
+	if l == 0 {
+		return -1
+	} else if l%2 == 0 {
+		return (inp[l/2-1] + inp[l/2+1]) / 2
+	} else {
+		return inp[l/2]
+	}
 }
 
 // fetchPriceFromWebAPI will fetch prices from multiple places, discard outliers and return the
 // concensus price
 func fetchPriceFromWebAPI() (float64, error) {
-	price, err := fetchCoinCapPrice()
+	// We'll fetch prices from all our endpoints, and use the median price from that
+	priceProviders := []func() (float64, error){fetchBinancePrice, fetchCoinCapPrice, fetchCoinbasePrice}
 
-	return price, err
+	ch := make(chan float64)
+
+	// Get all prices
+	for _, provider := range priceProviders {
+		go func(provider func() (float64, error)) {
+			price, err := provider()
+			if err != nil {
+				Log.WithFields(logrus.Fields{
+					"method":   "CurrentPrice",
+					"provider": runtime.FuncForPC(reflect.ValueOf(provider).Pointer()).Name(),
+					"error":    err,
+				}).Error("Service")
+
+				ch <- -1
+			} else {
+				Log.WithFields(logrus.Fields{
+					"method":   "CurrentPrice",
+					"provider": runtime.FuncForPC(reflect.ValueOf(provider).Pointer()).Name(),
+					"price":    price,
+				}).Info("Service")
+
+				ch <- price
+			}
+		}(provider)
+	}
+
+	prices := make([]float64, 0)
+	for range priceProviders {
+		price := <-ch
+		if price > 0 {
+			prices = append(prices, price)
+		}
+	}
+
+	// sort
+	sort.Float64s(prices)
+
+	// Get the median price
+	median1 := median(prices)
+
+	// Discard all values that are more than 20% outside the median
+	validPrices := make([]float64, 0)
+	for _, price := range prices {
+		if (math.Abs(price-median1) / median1) > 0.2 {
+			Log.WithFields(logrus.Fields{
+				"method": "CurrentPrice",
+				"error":  fmt.Sprintf("Discarding price (%.2f) because too far away from median (%.2f", price, median1),
+			}).Error("Service")
+		} else {
+			validPrices = append(validPrices, price)
+		}
+	}
+
+	// If we discarded too many, return an error
+	if len(validPrices) < (len(prices)/2 + 1) {
+		return -1, errors.New("not enough valid prices")
+	} else {
+		return median(validPrices), nil
+	}
 }
 
 func readHistoricalPricesFile() (map[string]float64, error) {
@@ -140,9 +220,9 @@ func writeHistoricalPricesMap() {
 	{
 		// Read lock
 		pricesRwMutex.RLock()
-		defer pricesRwMutex.RUnlock()
-
 		err = j.Encode(historicalPrices)
+		pricesRwMutex.RUnlock()
+
 		if err != nil {
 			Log.Errorf("Couldn't encode historical prices: %v", err)
 			return
@@ -164,11 +244,29 @@ func GetCurrentPrice() float64 {
 }
 
 func writeLatestPrice(price float64) {
+	{
+		// Read lock
+		pricesRwMutex.RLock()
+
+		// Check if the time has "rolled over", if yes then preserve the last price
+		// as the previous day's historical price
+		if latestPriceAt.Format("2006-01-02") != time.Now().Format("2006-01-02") {
+			// update the historical price.
+			// First, make a copy of the time
+			t := time.Unix(latestPriceAt.Unix(), 0)
+
+			go addHistoricalPrice(latestPrice, &t)
+		}
+		pricesRwMutex.RUnlock()
+	}
+
 	// Write lock
 	pricesRwMutex.Lock()
-	defer pricesRwMutex.Unlock()
 
 	latestPrice = price
+	latestPriceAt = time.Now()
+
+	pricesRwMutex.Unlock()
 }
 
 func GetHistoricalPrice(ts *time.Time) (float64, *time.Time, error) {
@@ -181,8 +279,10 @@ func GetHistoricalPrice(ts *time.Time) (float64, *time.Time, error) {
 	{
 		// Read lock
 		pricesRwMutex.RLock()
-		defer pricesRwMutex.RUnlock()
-		if val, ok := historicalPrices[dt]; ok {
+		val, ok := historicalPrices[dt]
+		pricesRwMutex.RUnlock()
+
+		if ok {
 			return val, &canonicalTime, nil
 		}
 	}
@@ -202,12 +302,16 @@ func GetHistoricalPrice(ts *time.Time) (float64, *time.Time, error) {
 func addHistoricalPrice(price float64, ts *time.Time) {
 	dt := ts.Format("2006-01-02")
 
-	// Write lock
-	pricesRwMutex.Lock()
-	defer pricesRwMutex.Unlock()
+	// Read Lock
+	pricesRwMutex.RLock()
+	_, ok := historicalPrices[dt]
+	pricesRwMutex.RUnlock()
 
-	if _, ok := historicalPrices[dt]; !ok {
+	if !ok {
+		// Write lock
+		pricesRwMutex.Lock()
 		historicalPrices[dt] = price
+		defer pricesRwMutex.Unlock()
 
 		go Log.WithFields(logrus.Fields{
 			"method": "HistoricalPrice",
@@ -230,9 +334,8 @@ func StartPriceFetcher(dbPath string, chainName string) {
 	} else {
 		// Write lock
 		pricesRwMutex.Lock()
-		defer pricesRwMutex.Unlock()
-
 		historicalPrices = prices
+		pricesRwMutex.Unlock()
 	}
 
 	// Fetch the current price every hour
@@ -240,7 +343,7 @@ func StartPriceFetcher(dbPath string, chainName string) {
 		for {
 			price, err := fetchPriceFromWebAPI()
 			if err != nil {
-				Log.Errorf("Error getting coincap.io price: %v", err)
+				Log.Errorf("Error getting prices from web APIs: %v", err)
 			} else {
 				Log.WithFields(logrus.Fields{
 					"method": "CurrentPrice",
@@ -250,8 +353,8 @@ func StartPriceFetcher(dbPath string, chainName string) {
 				writeLatestPrice(price)
 			}
 
-			// Sleep an hour before retrying
-			time.Sleep(1 * time.Hour)
+			// Refresh every
+			time.Sleep(15 * time.Minute)
 		}
 	}()
 }
