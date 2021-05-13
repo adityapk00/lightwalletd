@@ -287,6 +287,20 @@ func GetHistoricalPrice(ts *time.Time) (float64, *time.Time, error) {
 		}
 	}
 
+	{
+		// Check if this is the same as the current latest price
+
+		// Read lock
+		pricesRwMutex.RLock()
+		var price = latestPrice
+		var returnPrice = price > 0 && latestPriceAt.Format("2006-01-02") == dt
+		pricesRwMutex.RUnlock()
+
+		if returnPrice {
+			return price, &canonicalTime, nil
+		}
+	}
+
 	// Fetch price from web API
 	price, err := fetchHistoricalCoingeckoPrice(ts)
 	if err != nil {
