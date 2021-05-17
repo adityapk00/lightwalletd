@@ -237,12 +237,17 @@ func writeHistoricalPricesMap() {
 	}).Info("Service")
 }
 
-func GetCurrentPrice() float64 {
+func GetCurrentPrice() (float64, error) {
 	// Read lock
 	pricesRwMutex.RLock()
 	defer pricesRwMutex.RUnlock()
 
-	return latestPrice
+	// If the current price is too old, don't return it.
+	if time.Since(latestPriceAt).Hours() > 3 {
+		return -1, errors.New("price too old")
+	}
+
+	return latestPrice, nil
 }
 
 func writeLatestPrice(price float64) {

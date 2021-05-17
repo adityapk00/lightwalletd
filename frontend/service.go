@@ -118,7 +118,11 @@ func (s *lwdStreamer) GetZECPrice(ctx context.Context, in *walletrpc.PriceReques
 }
 
 func (s *lwdStreamer) GetCurrentZECPrice(ctx context.Context, in *walletrpc.Empty) (*walletrpc.PriceResponse, error) {
-	price := common.GetCurrentPrice()
+	price, err := common.GetCurrentPrice()
+	if err != nil {
+		return nil, err
+	}
+
 	if price <= 0 {
 		return nil, errors.New("no price available")
 	}
