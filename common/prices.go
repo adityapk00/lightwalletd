@@ -54,6 +54,10 @@ func fetchAPIPrice(url string, resultPath []string) (float64, error) {
 
 	for i := 0; i < len(resultPath); i++ {
 		d, ok := priceJSON[resultPath[i]]
+		if !ok {
+			return -1, fmt.Errorf("API error: couldn't find '%s'", resultPath[i])
+		}
+
 		switch v := d.(type) {
 		case float64:
 			return v, nil
@@ -65,10 +69,6 @@ func fetchAPIPrice(url string, resultPath []string) (float64, error) {
 
 		case map[string]interface{}:
 			priceJSON = v
-		}
-
-		if !ok {
-			return -1, fmt.Errorf("API error: couldn't find '%s'", resultPath[i])
 		}
 	}
 

@@ -99,7 +99,7 @@ func (s *lwdStreamer) dailyActiveBlock(height uint64, peerip string) {
 
 func (s *lwdStreamer) GetZECPrice(ctx context.Context, in *walletrpc.PriceRequest) (*walletrpc.PriceResponse, error) {
 	// Check for prices before zcash was born
-	if in == nil || in.Timestamp <= 1477551600 {
+	if in == nil || in.Timestamp <= 1477551600 /* Zcash birthday: 2016-10-28*/ {
 		return nil, errors.New("incorrect Timestamp")
 	}
 
