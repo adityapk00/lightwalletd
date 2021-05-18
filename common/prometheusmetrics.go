@@ -4,12 +4,15 @@ import "github.com/prometheus/client_golang/prometheus"
 
 // PrometheusMetrics is a list of collected Prometheus Counters and Guages that will be exported
 type PrometheusMetrics struct {
-	LatestBlockCounter        prometheus.Counter
-	TotalBlocksServedConter   prometheus.Counter
-	SendTransactionsCounter   prometheus.Counter
-	TotalErrors               prometheus.Counter
-	TotalSaplingParamsCounter prometheus.Counter
-	TotalSproutParamsCounter  prometheus.Counter
+	LatestBlockCounter           prometheus.Counter
+	TotalBlocksServedConter      prometheus.Counter
+	SendTransactionsCounter      prometheus.Counter
+	TotalErrors                  prometheus.Counter
+	TotalSaplingParamsCounter    prometheus.Counter
+	TotalSproutParamsCounter     prometheus.Counter
+	ZecPriceGauge                prometheus.Gauge
+	ZecPriceHistoryWebAPICounter prometheus.Counter
+	ZecPriceHistoryErrors        prometheus.Counter
 }
 
 func GetPrometheusMetrics() *PrometheusMetrics {
@@ -47,6 +50,21 @@ func GetPrometheusMetrics() *PrometheusMetrics {
 	m.TotalSproutParamsCounter = prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "params_sprout_total",
 		Help: "Total number of params downloasd for sprout params",
+	})
+
+	m.ZecPriceGauge = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "zec_price",
+		Help: "Current price of Zec",
+	})
+
+	m.ZecPriceHistoryWebAPICounter = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "zec_price_history_api_counter",
+		Help: "Counter of number of successful API calls to history API",
+	})
+
+	m.ZecPriceHistoryErrors = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "zec_price_history_errors",
+		Help: "Counter for number of errors seen in the history price API",
 	})
 
 	return m

@@ -126,6 +126,9 @@ func startServer(opts *common.Options) error {
 	promRegistry.MustRegister(common.Metrics.SendTransactionsCounter)
 	promRegistry.MustRegister(common.Metrics.TotalSaplingParamsCounter)
 	promRegistry.MustRegister(common.Metrics.TotalSproutParamsCounter)
+	promRegistry.MustRegister(common.Metrics.ZecPriceGauge)
+	promRegistry.MustRegister(common.Metrics.ZecPriceHistoryWebAPICounter)
+	promRegistry.MustRegister(common.Metrics.ZecPriceHistoryErrors)
 
 	logger.SetLevel(logrus.Level(opts.LogLevel))
 

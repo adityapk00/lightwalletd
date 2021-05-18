@@ -201,7 +201,7 @@ func readHistoricalPricesFile() (map[string]float64, error) {
 	}
 
 	Log.WithFields(logrus.Fields{
-		"method":  "HistoricalPrice",
+		"method":  "ReadHistoricalPriceFile",
 		"action":  "Read historical prices file",
 		"records": len(prices),
 	}).Info("Service")
@@ -232,7 +232,7 @@ func writeHistoricalPricesMap() {
 	}
 
 	Log.WithFields(logrus.Fields{
-		"method": "HistoricalPrice",
+		"method": "WriteHistoricalPriceFile",
 		"action": "Wrote historical prices file",
 	}).Info("Service")
 }
@@ -337,6 +337,9 @@ func addHistoricalPrice(price float64, ts *time.Time) {
 		historicalPrices[dt] = price
 		defer pricesRwMutex.Unlock()
 
+		// Increment success counter
+		Metrics.ZecPriceHistoryWebAPICounter.Inc()
+
 		go Log.WithFields(logrus.Fields{
 			"method": "HistoricalPrice",
 			"action": "Add",
@@ -370,7 +373,7 @@ func StartPriceFetcher(dbPath string, chainName string) {
 				Log.Errorf("Error getting prices from web APIs: %v", err)
 			} else {
 				Log.WithFields(logrus.Fields{
-					"method": "CurrentPrice",
+					"method": "SetCurrentPrice",
 					"price":  price,
 				}).Info("Service")
 
