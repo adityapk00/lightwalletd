@@ -16,7 +16,7 @@ func ParamsHandler(w http.ResponseWriter, req *http.Request) {
 			"param":  "sapling-output",
 		}).Info("ParamsHandler")
 
-		http.Redirect(w, req, "https://z.cash/downloads/sapling-output.params", 301)
+		http.Redirect(w, req, "https://z.cash/downloads/sapling-output.params", http.StatusMovedPermanently)
 		return
 	}
 
@@ -26,7 +26,7 @@ func ParamsHandler(w http.ResponseWriter, req *http.Request) {
 			"param":  "sapling-spend",
 		}).Info("ParamsHandler")
 
-		http.Redirect(w, req, "https://z.cash/downloads/sapling-spend.params", 301)
+		http.Redirect(w, req, "https://z.cash/downloads/sapling-spend.params", http.StatusMovedPermanently)
 		return
 	}
 
@@ -37,7 +37,7 @@ func ParamsHandler(w http.ResponseWriter, req *http.Request) {
 		}).Info("ParamsHandler")
 		Metrics.TotalSproutParamsCounter.Inc()
 
-		http.Redirect(w, req, "https://z.cash/downloads/sprout-groth16.params", 301)
+		http.Redirect(w, req, "https://z.cash/downloads/sprout-groth16.params", http.StatusMovedPermanently)
 		return
 	}
 
