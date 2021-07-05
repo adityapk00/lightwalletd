@@ -285,6 +285,10 @@ func startServer(opts *common.Options) error {
 	// Initialize price fetcher
 	common.StartPriceFetcher(dbPath, chainName)
 
+	// Initialize mempool monitor
+	exitMempool := make(chan bool)
+	common.StartMempoolMonitor(cache, exitMempool)
+
 	// Start listening
 	listener, err := net.Listen("tcp", opts.GRPCBindAddr)
 	if err != nil {
@@ -303,6 +307,8 @@ func startServer(opts *common.Options) error {
 		common.Log.WithFields(logrus.Fields{
 			"signal": s.String(),
 		}).Info("caught signal, stopping gRPC server")
+
+		exitMempool <- true
 		os.Exit(1)
 	}()
 
