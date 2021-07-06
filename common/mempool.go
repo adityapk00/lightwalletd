@@ -24,7 +24,7 @@ var (
 	blockcache *BlockCache
 
 	// Mutex to lock the above 2 structs
-	lock sync.RWMutex
+	lock sync.Mutex
 
 	// Since the mutex doesn't have a "try_lock" method, we'll have to improvize with this
 	refreshing int32 = 0
@@ -33,33 +33,40 @@ var (
 // AddNewClient adds a new client to the list of clients to notify for mempool txns
 func AddNewClient(client chan<- *walletrpc.RawTransaction) {
 	lock.Lock()
-	clients = append(clients, client)
-	println("Adding new client")
+	defer lock.Unlock()
 
 	// Also send all pending mempool txns
 	for _, rtx := range txns {
-		println("Sending tx to new client")
 		client <- rtx
+
 	}
 
-	lock.Unlock()
+	clients = append(clients, client)
 }
 
 // RefreshMempoolTxns gets all new mempool txns and sends any new ones to waiting clients
 func refreshMempoolTxns() error {
 	// First check if another refresh is running, if it is, just return
 	if !atomic.CompareAndSwapInt32(&refreshing, 0, 1) {
+		Log.Warnln("Another refresh in progress, returning")
 		return nil
 	}
-	defer atomic.CompareAndSwapInt32(&refreshing, 1, 0)
+
+	// Set refreshing to 0 when we exit
+	defer func() {
+		refreshing = 0
+	}()
 
 	// Check if the blockchain has changed, and if it has, then clear everything
 	lock.Lock()
+	defer lock.Unlock()
+
 	if lastHeight < blockcache.GetLatestHeight() {
-		println("Block height changed, clearing everything")
+		Log.Infoln("Block height changed, clearing everything")
+
 		// Flush all the clients
 		for _, client := range clients {
-			client <- nil
+			close(client)
 		}
 
 		clients = make([]chan<- *walletrpc.RawTransaction, 0)
@@ -69,7 +76,6 @@ func refreshMempoolTxns() error {
 
 		lastHeight = blockcache.GetLatestHeight()
 	}
-	lock.Unlock()
 
 	var mempoolList []string
 	params := make([]json.RawMessage, 0)
@@ -82,12 +88,10 @@ func refreshMempoolTxns() error {
 		return err
 	}
 
-	newTxns := make(map[string]*walletrpc.RawTransaction)
+	//println("getrawmempool size ", len(mempoolList))
 
-	lock.RLock()
 	// Fetch all new mempool txns and add them into `newTxns`
 	for _, txidstr := range mempoolList {
-
 		if _, ok := txns[txidstr]; !ok {
 			txidJSON, err := json.Marshal(txidstr)
 			if err != nil {
@@ -114,31 +118,19 @@ func refreshMempoolTxns() error {
 				return err
 			}
 
-			newTxns[txidstr] = &walletrpc.RawTransaction{
+			newRtx := &walletrpc.RawTransaction{
 				Data:   txBytes,
 				Height: 0,
 			}
+
+			// Notify waiting clients
+			for _, client := range clients {
+				client <- newRtx
+			}
+
+			txns[txidstr] = newRtx
 		}
 	}
-	lock.RUnlock()
-
-	if len(newTxns) == 0 {
-		return nil
-	}
-
-	// Add new txns into the `txns` struct, and notify all clients about them
-	lock.Lock()
-	for txidstr, rawtx := range newTxns {
-		txns[txidstr] = rawtx
-
-		println("Sending txid:", txidstr)
-
-		// Notify waiting clients
-		for _, client := range clients {
-			client <- rawtx
-		}
-	}
-	lock.Unlock()
 
 	return nil
 }
@@ -155,10 +147,13 @@ func StartMempoolMonitor(cache *BlockCache, done <-chan bool) {
 			case <-ticker.C:
 				err := refreshMempoolTxns()
 				if err != nil {
-					println("Refresh error:", err.Error())
+					Log.Errorln("Mempool refresh error:", err.Error())
 				}
 
 			case <-done:
+				for _, client := range clients {
+					close(client)
+				}
 				return
 			}
 		}
