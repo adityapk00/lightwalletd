@@ -120,7 +120,7 @@ func refreshMempoolTxns() error {
 
 			newRtx := &walletrpc.RawTransaction{
 				Data:   txBytes,
-				Height: 0,
+				Height: uint64(lastHeight),
 			}
 
 			// Notify waiting clients
