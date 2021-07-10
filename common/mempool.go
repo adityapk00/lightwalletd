@@ -51,7 +51,8 @@ func AddNewClient(client chan<- *walletrpc.RawTransaction) {
 
 // RefreshMempoolTxns gets all new mempool txns and sends any new ones to waiting clients
 func refreshMempoolTxns() error {
-	//Log.Infoln("Refreshing mempool")
+	Log.Infoln("Refreshing mempool")
+
 	// First check if another refresh is running, if it is, just return
 	if !atomic.CompareAndSwapInt32(&refreshing, 0, 1) {
 		Log.Warnln("Another refresh in progress, returning")
@@ -139,7 +140,7 @@ func refreshMempoolTxns() error {
 				}
 			}
 
-			//Log.Infoln("Adding new mempool txid", txidstr, " sending to ", len(clients), " clients")
+			Log.Infoln("Adding new mempool txid", txidstr, " sending to ", len(clients), " clients")
 			txns[txidstr] = newRtx
 		}
 	}
@@ -157,11 +158,13 @@ func StartMempoolMonitor(cache *BlockCache, done <-chan bool) {
 		for {
 			select {
 			case <-ticker.C:
-				//Log.Infoln("Ticker triggered")
-				err := refreshMempoolTxns()
-				if err != nil {
-					Log.Errorln("Mempool refresh error:", err.Error())
-				}
+				go func() {
+					//Log.Infoln("Ticker triggered")
+					err := refreshMempoolTxns()
+					if err != nil {
+						Log.Errorln("Mempool refresh error:", err.Error())
+					}
+				}()
 
 			case <-done:
 				for _, client := range clients {

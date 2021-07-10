@@ -623,7 +623,7 @@ func (s *lwdStreamer) GetMempoolTx(exclude *walletrpc.Exclude, resp walletrpc.Co
 }
 
 func (s *lwdStreamer) GetMempoolStream(_empty *walletrpc.Empty, resp walletrpc.CompactTxStreamer_GetMempoolStreamServer) error {
-	ch := make(chan *walletrpc.RawTransaction)
+	ch := make(chan *walletrpc.RawTransaction, 200)
 	go common.AddNewClient(ch)
 
 	for {
